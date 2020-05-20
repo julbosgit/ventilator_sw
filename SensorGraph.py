@@ -29,13 +29,15 @@ port.baudrate=115200
 port.bytesize=8
 port.parity='N'
 port.stopbits=1
-chamber=1000
+chamber=1200
 psia=14.696
 tidal_ray=[]
 tidal_time=[]
 rawDataRay=[]
 time_ray=[]
 patient_ray=[]
+flow_ray=[]
+flow_time=[]
 prev_tank=0
 read_status=0
 tidalcc=0
@@ -57,24 +59,40 @@ while(1):
         time_ray.append(time)
         patient_ray.append(patient_val)
         ## Volume Tidal
-        print(data_ray[1])
-        if abs(float(data_ray[1])-prev_tank)==0 and read_status==0:
+        if int(data_ray[7])==0 and read_status==0:
             read_status=1
         
-        if abs(float(data_ray[1]))==0 and read_status==1:
+        if int(data_ray[7])==1 and read_status==1:
             read_status=0
             tidalcc=0
         
         if read_status==1:
-            v2=float(chamber*(float(data_ray[1])+psia)/psia)
+            v2=float(chamber*(float(data_ray[2])+psia)/psia)
             tidalcurr=v2-chamber
             tidalcc+=tidalcurr
             tidal_ray.append(tidalcc)
             tidal_time.append(int(data_ray[0]))
+
+        if read_status==0:
+            tidal_time.append(time)
+            tidal_ray.append(0)
+            flow_ray.append(float(0))
+            flow_time.append(time)
         
-        prev_tank=float(data_ray[1])
-        
-        
+        prev_tank=float(data_ray[2])
+
+        ## Flow Rate
+
+        if read_status==1 and len(tidal_ray)>=3:
+            try:
+                tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
+                time_diff=tidal_time[-1]-tidal_time[-2]
+                flow_rate=float(60*(tidal_diff/1000)/(time_diff/1000))
+                flow_ray.append(flow_rate)
+                flow_time.append(int(data_ray[0]))
+            except:
+                print("error")
+
         ax1.cla()
         ax1.plot(time_ray,patient_ray)
         ax1.set_xlabel("Time")
@@ -88,9 +106,16 @@ while(1):
         ax2.set_ylabel("Tidal CC")
         ax2.set_title("Tidal CC Waveform")
         ax2.set_xlim(left=max(0,time-window),right=time+10)
+
+        ax3.cla()
+        ax3.plot(flow_time,flow_ray)
+        ax3.set_xlabel("Time")
+        ax3.set_ylabel("Flowrate")
+        ax3.set_title("Flow rate Waveform")
+        ax3.set_xlim(left=max(0,time-window),right=time+10)
     
         fig.tight_layout(pad=.5)
-        plt.pause(0.0001)
+        plt.pause(0.00001)
 # except:
 #   print("EXCEPTION")
 
