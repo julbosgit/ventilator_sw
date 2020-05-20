@@ -20,22 +20,32 @@ window=input("Enter preasure Window Size")
 window=int(window)
 #timeout=input("Specify timeout in seconds")
 timeout=40
-portDAT=input("Enter serial port comm")
+#portDAT=input("Enter serial port comm")
 
 
-port=serial.Serial(portDAT)
-#port=serial.Serial('/dev/cu.usbmodem1421')
+#port=serial.Serial(portDAT)
+port=serial.Serial('/dev/cu.usbmodem1421')
 port.baudrate=115200
 port.bytesize=8
 port.parity='N'
 port.stopbits=1
+chamber=1000
+psia=14.696
+tidal_ray=[]
+tidal_time=[]
 rawDataRay=[]
 time_ray=[]
 patient_ray=[]
+prev_tank=0
+read_status=0
+tidalcc=0
 fig,(ax1,ax2,ax3)=plt.subplots(3,1)
 
+
+
+
 while(1):
-    try:
+    #try:
         dat=port.readline()
         print(dat)
         decoded=dat.decode('utf-8')
@@ -46,16 +56,43 @@ while(1):
         patient_val=float(data_ray[3])*70.307
         time_ray.append(time)
         patient_ray.append(patient_val)
+        ## Volume Tidal
+        print(data_ray[1])
+        if abs(float(data_ray[1])-prev_tank)==0 and read_status==0:
+            read_status=1
+        
+        if abs(float(data_ray[1]))==0 and read_status==1:
+            read_status=0
+            tidalcc=0
+        
+        if read_status==1:
+            v2=float(chamber*(float(data_ray[1])+psia)/psia)
+            tidalcurr=v2-chamber
+            tidalcc+=tidalcurr
+            tidal_ray.append(tidalcc)
+            tidal_time.append(int(data_ray[0]))
+        
+        prev_tank=float(data_ray[1])
+        
+        
         ax1.cla()
         ax1.plot(time_ray,patient_ray)
         ax1.set_xlabel("Time")
         ax1.set_ylabel("Patient Preasure cm H2O")
         ax1.set_title("Preasure Waveform")
         ax1.set_xlim(left=max(0,time-window),right=time+10)
+
+        ax2.cla()
+        ax2.plot(tidal_time,tidal_ray)
+        ax2.set_xlabel("Time")
+        ax2.set_ylabel("Tidal CC")
+        ax2.set_title("Tidal CC Waveform")
+        ax2.set_xlim(left=max(0,time-window),right=time+10)
+    
         fig.tight_layout(pad=.5)
         plt.pause(0.0001)
-    except:
-        print("EXCEPTION")
+# except:
+#   print("EXCEPTION")
 
 #################
 ######IGNORE#####
