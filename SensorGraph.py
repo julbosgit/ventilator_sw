@@ -11,6 +11,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+from time import sleep
+from pyqtgraph.Qt import QtGui, QtCore
+import pyqtgraph as pg
+from pyqtgraph.ptime import time
+
 
 #plt.style.use("seaborn")
 print("***********************************************")
@@ -41,13 +49,37 @@ flow_time=[]
 prev_tank=0
 read_status=0
 tidalcc=0
-fig,(ax1,ax2,ax3)=plt.subplots(3,1)
+app = QtGui.QApplication([])
+view = pg.GraphicsView()
+l = pg.GraphicsLayout(border=(100, 100, 100))
+view.setCentralItem(l)
+view.show()
+view.resize(800, 600)
+# l.addLayout(colspan=1, border=(50, 0, 0))
+p1 = l.addPlot()
+l.nextRow()
+p2 = l.addPlot()
+l.nextRow()
+p3 = l.addPlot()
+#p1 = pg.plot()
+#p1.setRange(xRange=[max(0,time-window),time+10])
+#p1.setWindowTitle('Patient pressure')
+curve = p1.plot()
+curve2= p2.plot()
+curve3= p3.plot()
+p1.showGrid(x = True, y = True, alpha = 0.2)
+p2.showGrid(x = True, y = True, alpha = 0.2)
+p3.showGrid(x = True, y = True, alpha = 0.2)
+
+#fig,(ax1,ax2,ax3)=plt.subplots(3,1)
 
 
 
-
-while(1):
+#while(1):
     #try:
+def update():
+        global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
+        global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time
         dat=port.readline()
         print(dat)
         decoded=dat.decode('utf-8')
@@ -92,7 +124,12 @@ while(1):
                 flow_time.append(int(data_ray[0]))
             except:
                 print("error")
-
+        curve.setData(time_ray,patient_ray)
+        curve2.setData(tidal_time,tidal_ray)
+        curve3.setData(flow_time,flow_ray)
+        app.processEvents()
+        
+        '''
         ax1.cla()
         ax1.plot(time_ray,patient_ray)
         ax1.set_xlabel("Time")
@@ -116,6 +153,17 @@ while(1):
     
         fig.tight_layout(pad=.5)
         plt.pause(0.00001)
+        '''
+       
+        sleep(1/1000)
+timer = QtCore.QTimer()
+timer.timeout.connect(update)
+timer.start(0)
+if __name__ == '__main__':
+    import sys
+    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        QtGui.QApplication.instance().exec_()
+                      
 # except:
 #   print("EXCEPTION")
 
