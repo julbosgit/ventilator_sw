@@ -78,6 +78,7 @@ p3.showGrid(x = True, y = True, alpha = 0.2)
 #while(1):
     #try:
 def update():
+    try:
         global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
         global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
         dat=port.readline()
@@ -132,6 +133,8 @@ def update():
         curve2.setData(tidal_time,tidal_ray)
         curve3.setData(flow_time,flow_ray)
         app.processEvents()
+    except:
+        print("EXCEPTION")
         
         '''
         ax1.cla()
