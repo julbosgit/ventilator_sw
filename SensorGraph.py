@@ -24,7 +24,7 @@ from pyqtgraph.ptime import time
 print("***********************************************")
 print("***************Ventilator GUI******************")
 print("***********************************************")
-window=input("Enter preasure Window Size")
+window=input("Enter preasure Window Size in sec")
 window=int(window)
 #timeout=input("Specify timeout in seconds")
 timeout=40
@@ -79,22 +79,22 @@ p3.showGrid(x = True, y = True, alpha = 0.2)
     #try:
 def update():
         global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
-        global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time
+        global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
         dat=port.readline()
         print(dat)
         decoded=dat.decode('utf-8')
         print(decoded)
         rawDataRay.append(decoded)
         data_ray=decoded.split(",")
-        time=int(data_ray[0])
+        time=float(data_ray[0])/1000
         patient_val=float(data_ray[3])*70.307
         time_ray.append(time)
         patient_ray.append(patient_val)
         ## Volume Tidal
-        if int(data_ray[7])==0 and read_status==0:
+        if int(data_ray[12])==0 and read_status==0:
             read_status=1
         
-        if int(data_ray[7])==1 and read_status==1:
+        if int(data_ray[12])==1 and read_status==1:
             read_status=0
             tidalcc=0
         
@@ -103,7 +103,7 @@ def update():
             tidalcurr=v2-chamber
             tidalcc+=tidalcurr
             tidal_ray.append(tidalcc)
-            tidal_time.append(int(data_ray[0]))
+            tidal_time.append(float(data_ray[0])/1000)
 
         if read_status==0:
             tidal_time.append(time)
@@ -117,13 +117,17 @@ def update():
 
         if read_status==1 and len(tidal_ray)>=3:
             try:
-                tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
-                time_diff=tidal_time[-1]-tidal_time[-2]
-                flow_rate=float(60*(tidal_diff/1000)/(time_diff/1000))
-                flow_ray.append(flow_rate)
-                flow_time.append(int(data_ray[0]))
+                #tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
+                #time_diff=tidal_time[-1]-tidal_time[-2]
+                #flow_rate=float(60*(tidal_diff/1000)/(time_diff/1000))
+                #flow_rate.append(data_ray[4])
+                flow_ray.append(float(data_ray[4]))
+                flow_time.append(float(data_ray[0])/1000)
             except:
                 print("error")
+        p1.setXRange(max(0,time-window) ,time+1)
+        p2.setXRange(max(0,time-window) ,time+1)
+        p3.setXRange(max(0,time-window) ,time+1)
         curve.setData(time_ray,patient_ray)
         curve2.setData(tidal_time,tidal_ray)
         curve3.setData(flow_time,flow_ray)
