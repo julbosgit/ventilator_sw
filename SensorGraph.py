@@ -32,6 +32,7 @@ timeout=40
 
 
 #port=serial.Serial(portDAT)
+#Serial Port info
 port=serial.Serial('/dev/cu.usbmodem1421')
 port.baudrate=115200
 port.bytesize=8
@@ -39,11 +40,14 @@ port.parity='N'
 port.stopbits=1
 chamber=1200
 psia=14.696
+#Tidal volume plot arrays
 tidal_ray=[]
 tidal_time=[]
 rawDataRay=[]
+#Patient preassure arrays
 time_ray=[]
 patient_ray=[]
+#Flowrate arrays
 flow_ray=[]
 flow_time=[]
 prev_tank=0
@@ -55,18 +59,27 @@ l = pg.GraphicsLayout(border=(100, 100, 100))
 view.setCentralItem(l)
 view.show()
 view.resize(800, 600)
-# l.addLayout(colspan=1, border=(50, 0, 0))
-p1 = l.addPlot()
+##Initialize Plots###
+p1 = l.addPlot()  #Patient Plot
+p1.setLabel("bottom","Time (sec)")
+p1.setLabel("left","Preasure (cm H2O)")
+p1.setTitle("Patient Preassure")
 l.nextRow()
-p2 = l.addPlot()
+p2 = l.addPlot() #Volume Plot
+p2.setLabel("bottom","Time (sec)")
+p2.setLabel("left","Volume")
+p2.setTitle("Volume")
 l.nextRow()
-p3 = l.addPlot()
+p3 = l.addPlot() #FlowRate Plot
+p3.setLabel("bottom","Time (sec)")
+p3.setLabel("left","Flowrate")
+p3.setTitle("Flowrate")
 #p1 = pg.plot()
 #p1.setRange(xRange=[max(0,time-window),time+10])
 #p1.setWindowTitle('Patient pressure')
-curve = p1.plot()
-curve2= p2.plot()
-curve3= p3.plot()
+curve = p1.plot()   #Curve Patient
+curve2= p2.plot()   #Curve Volume
+curve3= p3.plot()   #Curve Flowrate
 p1.showGrid(x = True, y = True, alpha = 0.2)
 p2.showGrid(x = True, y = True, alpha = 0.2)
 p3.showGrid(x = True, y = True, alpha = 0.2)
@@ -75,23 +88,24 @@ p3.showGrid(x = True, y = True, alpha = 0.2)
 
 
 
-#while(1):
-    #try:
+#Main Loop Update
 def update():
     try:
         global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
         global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
-        dat=port.readline()
+        dat=port.readline()                     #Collect data from serial line
         print(dat)
         decoded=dat.decode('utf-8')
         print(decoded)
-        rawDataRay.append(decoded)
+        rawDataRay.append(decoded)              #Parse Serial Line data
         data_ray=decoded.split(",")
-        time=float(data_ray[0])/1000
-        patient_val=float(data_ray[3])*70.307
+        trial_data=data_ray[12]                 #Test whether complete serial line was sent
+        time=float(data_ray[0])/1000            #Convert time to seconds
+        patient_val=float(data_ray[3])*70.307   #Convert patient Data
         time_ray.append(time)
         patient_ray.append(patient_val)
-        ## Volume Tidal
+        # Volume Tidal plotting
+        # read_status indicates whether tidal volume needs to start collecting
         if int(data_ray[12])==0 and read_status==0:
             read_status=1
         
@@ -114,8 +128,7 @@ def update():
         
         prev_tank=float(data_ray[2])
 
-        ## Flow Rate
-
+        ## Flow Rate Collected rrom Flowmeter
         if read_status==1 and len(tidal_ray)>=3:
             try:
                 #tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
@@ -124,17 +137,20 @@ def update():
                 #flow_rate.append(data_ray[4])
                 flow_ray.append(float(data_ray[4]))
                 flow_time.append(float(data_ray[0])/1000)
-            except:
-                print("error")
+            except Exception as e:
+                print(e)
+        
+        #Set X Time windows
         p1.setXRange(max(0,time-window) ,time+1)
         p2.setXRange(max(0,time-window) ,time+1)
         p3.setXRange(max(0,time-window) ,time+1)
+        #Set final data values to update plots
         curve.setData(time_ray,patient_ray)
         curve2.setData(tidal_time,tidal_ray)
         curve3.setData(flow_time,flow_ray)
         app.processEvents()
-    except:
-        print("EXCEPTION")
+    except Exception as e:
+        print(e)
         
         '''
         ax1.cla()
