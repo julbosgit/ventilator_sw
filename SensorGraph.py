@@ -10,11 +10,12 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit,QPushButton
 from time import sleep
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 from pyqtgraph.ptime import time
+from PyQt5.QtCore import pyqtSlot
 
 ##DOWNSAMPLING
 DOWNSAMPLING=10
@@ -26,6 +27,7 @@ rolling_time=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_patient=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_volume=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_flow=np.zeros(NUM_SAMPLES_DISPLAYED)
+rolling_simulated=np.zeros(NUM_SAMPLES_DISPLAYED)
 #plt.style.use("seaborn")
 print("***********************************************")
 print("***************Ventilator GUI******************")
@@ -70,6 +72,21 @@ textbox.move(20, 20)
 textbox.resize(280,40)
 # Set window size.
 w.resize(320, 150)
+button = QPushButton('Toggle Flowrate Graphs', w)
+button.move(20,80)
+# Create the actions
+@pyqtSlot()
+def on_toggle():
+    global toggle_status, p1,p2,p3,p4
+    if toggle_status==0:
+        p4.show()
+        p3.hide()
+        toggle_status=1
+    elif toggle_status==1:
+        p3.show()
+        p4.hide()
+        toggle_status=0
+button.clicked.connect(on_toggle)
 w.show()
 
 #Extra view
@@ -77,7 +94,7 @@ view = pg.GraphicsView()
 l = pg.GraphicsLayout(border=(100, 100, 100))
 view.setCentralItem(l)
 view.show()
-view.resize(800, 600)
+view.resize(1000, 1000)
 ##Initialize Plots###
 p1 = l.addPlot()  #Patient Plot
 p1.setLabel("bottom","Time (sec)")
@@ -93,15 +110,24 @@ p3 = l.addPlot() #FlowRate Plot
 p3.setLabel("bottom","Time (sec)")
 p3.setLabel("left","Flowrate")
 p3.setTitle("Flowrate")
+l.nextRow()
+p4=l.addPlot() #simulated FlowRate Plot
+p4.setLabel("bottom","Time (sec)")
+p4.setLabel("left","Simulated Flowrate")
+p4.setTitle("Simulated Flowrate")
 #p1 = pg.plot()
 #p1.setRange(xRange=[max(0,time-window),time+10])
 #p1.setWindowTitle('Patient pressure')
 curve = p1.plot()   #Curve Patient
 curve2= p2.plot()   #Curve Volume
 curve3= p3.plot()   #Curve Flowrate
+curve4= p4.plot()   #Curve Simulated Flowrate
 p1.showGrid(x = True, y = True, alpha = 0.2)
 p2.showGrid(x = True, y = True, alpha = 0.2)
 p3.showGrid(x = True, y = True, alpha = 0.2)
+p4.showGrid(x = True, y = True, alpha = 0.2)
+p4.hide()
+toggle_status=0
 dec=0
 #fig,(ax1,ax2,ax3)=plt.subplots(3,1)
 
@@ -109,9 +135,9 @@ dec=0
 
 #Main Loop Update
 def update():
-    global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
+    global curve, curve2, curve3, curve4, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
     global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
-    global rolling_time,rolling_flow,rolling_volume,rolling_patient,NUM_SAMPLES_DISPLAYED
+    global rolling_time,rolling_flow,rolling_volume,rolling_patient, rolling_simulated, NUM_SAMPLES_DISPLAYED
     try:
         dat=port.readline()                     #Collect data from serial line
         decoded=dat.decode('utf-8')
@@ -130,6 +156,8 @@ def update():
             rolling_time[NUM_SAMPLES_DISPLAYED-1]=time
             rolling_patient=np.roll(rolling_patient,-1)
             rolling_patient[NUM_SAMPLES_DISPLAYED-1]=patient_val
+            rolling_flow=np.roll(rolling_flow,-1)
+            rolling_flow[NUM_SAMPLES_DISPLAYED-1]=float(data_ray[4])
             # Volume Tidal plotting
             # read_status indicates whether tidal volume needs to start collecting
             if int(data_ray[12])==0 and read_status==0:
@@ -155,23 +183,24 @@ def update():
                 flow_time.append(time)
                 rolling_volume=np.roll(rolling_volume,-1)
                 rolling_volume[NUM_SAMPLES_DISPLAYED-1]=0
-                rolling_flow=np.roll(rolling_flow,-1)
-                rolling_flow[NUM_SAMPLES_DISPLAYED-1]=0
+                #rolling_flow=np.roll(rolling_flow,-1)
+                #rolling_flow[NUM_SAMPLES_DISPLAYED-1]=0
+                rolling_simulated=np.roll(rolling_simulated,-1)
+                rolling_simulated[NUM_SAMPLES_DISPLAYED-1]=0
             
             prev_tank=float(data_ray[2])
 
             ## Flow Rate Collected rrom Flowmeter
             if read_status==1 and len(tidal_ray)>=3:
                 try:
-                    #tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
-                    #time_diff=tidal_time[-1]-tidal_time[-2]
-                    #flow_rate=float(60*(tidal_diff/1000)/(time_diff/1000))
+                    tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
+                    time_diff=tidal_time[-1]-tidal_time[-2]
+                    flow_rate=float(-60*(tidal_diff/1000)/(time_diff/1000))
+                    rolling_simulated=np.roll(rolling_simulated,-1)
+                    rolling_simulated[NUM_SAMPLES_DISPLAYED-1]=flow_rate
                     #flow_rate.append(data_ray[4])
                     flow_ray.append(float(data_ray[4]))
                     flow_time.append(float(data_ray[0])/1000)
-                    rolling_flow=np.roll(rolling_flow,-1)
-                    rolling_flow[NUM_SAMPLES_DISPLAYED-1]=float(data_ray[4])
-                
                 except Exception as e:
                     print(e)
             
@@ -186,6 +215,7 @@ def update():
             curve.setData(TIME_DATA,rolling_patient)
             curve2.setData(TIME_DATA,rolling_volume)
             curve3.setData(TIME_DATA,rolling_flow)
+            curve4.setData(TIME_DATA,rolling_simulated)
             app.processEvents()
     dec+=1
 
