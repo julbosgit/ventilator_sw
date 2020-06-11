@@ -33,8 +33,8 @@ rolling_flow=np.zeros(NUM_SAMPLES_DISPLAYED)
 print("***********************************************")
 print("***************Ventilator GUI******************")
 print("***********************************************")
-window=input("Enter preasure Window Size in sec")
-window=int(window)
+#window=input("Enter preasure Window Size in sec")
+#window=int(window)
 #timeout=input("Specify timeout in seconds")
 timeout=40
 #portDAT=input("Enter serial port comm")
@@ -56,7 +56,6 @@ rawDataRay=[]
 #Patient preassure arrays
 time_ray=[]
 patient_ray=[]
-rolling_time=[]
 #Flowrate arrays
 flow_ray=[]
 flow_time=[]
@@ -102,6 +101,7 @@ dec=0
 def update():
     global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
     global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
+    global rolling_time,rolling_flow,rolling_volume,rolling_patient,NUM_SAMPLES_DISPLAYED
     try:
         dat=port.readline()                     #Collect data from serial line
         decoded=dat.decode('utf-8')
@@ -116,9 +116,10 @@ def update():
             patient_val=float(data_ray[3])*70.307   #Convert patient Data
             time_ray.append(time)
             patient_ray.append(patient_val)
-            #rolling_time=np.roll(rolling_time,-1)
-            #rolling_time[NUM_SAMPLES_DISPLAYED-1]=time
-            #rolling_patient=np.roll(rolling_patient,-1)
+            rolling_time=np.roll(rolling_time,-1)
+            rolling_time[NUM_SAMPLES_DISPLAYED-1]=time
+            rolling_patient=np.roll(rolling_patient,-1)
+            rolling_patient[NUM_SAMPLES_DISPLAYED-1]=patient_val
             # Volume Tidal plotting
             # read_status indicates whether tidal volume needs to start collecting
             if int(data_ray[12])==0 and read_status==0:
@@ -134,12 +135,18 @@ def update():
                 tidalcc+=tidalcurr
                 tidal_ray.append(tidalcc)
                 tidal_time.append(float(data_ray[0])/1000)
+                rolling_volume=np.roll(rolling_volume,-1)
+                rolling_volume[NUM_SAMPLES_DISPLAYED-1]=tidalcc
 
             if read_status==0:
                 tidal_time.append(time)
                 tidal_ray.append(0)
                 flow_ray.append(float(0))
                 flow_time.append(time)
+                rolling_volume=np.roll(rolling_volume,-1)
+                rolling_volume[NUM_SAMPLES_DISPLAYED-1]=0
+                rolling_flow=np.roll(rolling_flow,-1)
+                rolling_flow[NUM_SAMPLES_DISPLAYED-1]=0
             
             prev_tank=float(data_ray[2])
 
@@ -152,17 +159,23 @@ def update():
                     #flow_rate.append(data_ray[4])
                     flow_ray.append(float(data_ray[4]))
                     flow_time.append(float(data_ray[0])/1000)
+                    rolling_flow=np.roll(rolling_flow,-1)
+                    rolling_flow[NUM_SAMPLES_DISPLAYED-1]=float(data_ray[4])
+                
                 except Exception as e:
                     print(e)
             
             #Set X Time windows
-            p1.setXRange(max(0,time-window) ,time+1)
-            p2.setXRange(max(0,time-window) ,time+1)
-            p3.setXRange(max(0,time-window) ,time+1)
+            #p1.setXRange(max(0,time-window) ,time+1)
+            #p2.setXRange(max(0,time-window) ,time+1)
+            #p3.setXRange(max(0,time-window) ,time+1)
             #Set final data values to update plots
-            curve.setData(time_ray,patient_ray)
-            curve2.setData(tidal_time,tidal_ray)
-            curve3.setData(flow_time,flow_ray)
+            #curve.setData(time_ray,patient_ray)
+            #curve2.setData(tidal_time,tidal_ray)
+            #curve3.setData(flow_time,flow_ray)
+            curve.setData(TIME_DATA,rolling_patient)
+            curve2.setData(TIME_DATA,rolling_volume)
+            curve3.setData(TIME_DATA,rolling_flow)
             app.processEvents()
     dec+=1
         
