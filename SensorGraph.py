@@ -10,10 +10,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget
-import plotly.express as px
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit
 from time import sleep
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
@@ -63,6 +60,19 @@ prev_tank=0
 read_status=0
 tidalcc=0
 app = QtGui.QApplication([])
+
+#Window Widget
+w=QWidget()
+w.setWindowTitle('Ventilator application - Set Window Size (seconds)')
+# Create textbox
+textbox = QLineEdit(w)
+textbox.move(20, 20)
+textbox.resize(280,40)
+# Set window size.
+w.resize(320, 150)
+w.show()
+
+#Extra view
 view = pg.GraphicsView()
 l = pg.GraphicsLayout(border=(100, 100, 100))
 view.setCentralItem(l)
@@ -178,33 +188,8 @@ def update():
             curve3.setData(TIME_DATA,rolling_flow)
             app.processEvents()
     dec+=1
-        
-    '''
-        ax1.cla()
-        ax1.plot(time_ray,patient_ray)
-        ax1.set_xlabel("Time")
-        ax1.set_ylabel("Patient Preasure cm H2O")
-        ax1.set_title("Preasure Waveform")
-        ax1.set_xlim(left=max(0,time-window),right=time+10)
 
-        ax2.cla()
-        ax2.plot(tidal_time,tidal_ray)
-        ax2.set_xlabel("Time")
-        ax2.set_ylabel("Tidal CC")
-        ax2.set_title("Tidal CC Waveform")
-        ax2.set_xlim(left=max(0,time-window),right=time+10)
 
-        ax3.cla()
-        ax3.plot(flow_time,flow_ray)
-        ax3.set_xlabel("Time")
-        ax3.set_ylabel("Flowrate")
-        ax3.set_title("Flow rate Waveform")
-        ax3.set_xlim(left=max(0,time-window),right=time+10)
-    
-        fig.tight_layout(pad=.5)
-        plt.pause(0.00001)
-    '''
-       
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
@@ -212,87 +197,3 @@ if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()
-                      
-# except:
-#   print("EXCEPTION")
-
-#################
-######IGNORE#####
-#################
-
-'''
-    #declare specific data lists
-    temperature=[]
-    pressure=[]
-    timestamp=[]
-    
-    
-    #modify raw data array
-    for i in range (0,len(rawDataRay)):
-        str=rawDataRay[i]
-        if(rawDataRay[i][0]=='W'):
-            continue
-        splitString=str.split(', ')
-        if len(splitString) !=4:
-            continue
-        
-        timestamp.append(float(splitString[1])/60000)
-        pressure.append(float(splitString[2]))
-        temperature.append(float(splitString[3]))
-    
-    
-    plt.scatter(timestamp,pressure)
-    plt.ylabel('Pressure in psi')
-    plt.xlabel('TimeStamp minutes')
-    plt.title('Pressure vs. Time')
-    plt.ylim(0,100)
-    plt.show()
-    
-    plt.figure(2)
-    plt.scatter(timestamp,temperature)
-    plt.ylabel('Temperature in Celcius')
-    plt.xlabel('TimeStamp minutes')
-    plt.title('Temperature vs. Time')
-    plt.ylim(0,40)
-    plt.show()
-    
-    port.close()
-'''
-'''
-elif comm=="CA":
-    port=serial.Serial(portDAT)
-    #port=serial.Serial('/dev/tty.usbserial-FT9IK0U5')
-    port.baudrate=115200
-    port.bytesize=8
-    port.parity='N'
-    port.stopbits=1
-    data=bytearray(b'/r')
-    port.write(data)
-    timeout=time.time()+int(1)
-    while(1):
-        if time.time()>timeout:
-            break
-    timeout=time.time()+int(2)
-    #timeout=time.time()+5
-    #Transmit Data
-    data=bytearray(b'CA')
-    port.write(data)
-else:
-    m=1
-'''
-    
-    #send return byte array
-'''
-        data=bytearray(b'/r')
-        port.write(data)
-        timeout=time.time()+int(1)
-        while(1):
-        if time.time()>timeout:
-        break
-        
-        timeout=time.time()+int(2)
-        #timeout=time.time()+5
-        #Transmit Data
-        data=bytearray(b'D')
-        port.write(data)
-'''
