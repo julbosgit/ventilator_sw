@@ -19,7 +19,16 @@ from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 from pyqtgraph.ptime import time
 
-
+##DOWNSAMPLING
+DOWNSAMPLING=10
+NUM_SEC_DISPLAYED = 20
+ARDUINO_SAMPLE_TIME_MS = 6
+NUM_SAMPLES_DISPLAYED = int(NUM_SEC_DISPLAYED * 1000 / ARDUINO_SAMPLE_TIME_MS / DOWNSAMPLING)
+TIME_DATA = np.linspace(0,NUM_SEC_DISPLAYED, NUM_SAMPLES_DISPLAYED, False)
+rolling_time=np.zeros(NUM_SAMPLES_DISPLAYED)
+rolling_patient=np.zeros(NUM_SAMPLES_DISPLAYED)
+rolling_volume=np.zeros(NUM_SAMPLES_DISPLAYED)
+rolling_flow=np.zeros(NUM_SAMPLES_DISPLAYED)
 #plt.style.use("seaborn")
 print("***********************************************")
 print("***************Ventilator GUI******************")
@@ -47,6 +56,7 @@ rawDataRay=[]
 #Patient preassure arrays
 time_ray=[]
 patient_ray=[]
+rolling_time=[]
 #Flowrate arrays
 flow_ray=[]
 flow_time=[]
@@ -83,76 +93,80 @@ curve3= p3.plot()   #Curve Flowrate
 p1.showGrid(x = True, y = True, alpha = 0.2)
 p2.showGrid(x = True, y = True, alpha = 0.2)
 p3.showGrid(x = True, y = True, alpha = 0.2)
-
+dec=0
 #fig,(ax1,ax2,ax3)=plt.subplots(3,1)
 
 
 
 #Main Loop Update
 def update():
+    global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
+    global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
     try:
-        global curve, curve2, curve3, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
-        global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
         dat=port.readline()                     #Collect data from serial line
-        print(dat)
         decoded=dat.decode('utf-8')
         print(decoded)
+    except:
+        decoded=''
+    if dec % DOWNSAMPLING==0:
         rawDataRay.append(decoded)              #Parse Serial Line data
         data_ray=decoded.split(",")
-        trial_data=data_ray[12]                 #Test whether complete serial line was sent
-        time=float(data_ray[0])/1000            #Convert time to seconds
-        patient_val=float(data_ray[3])*70.307   #Convert patient Data
-        time_ray.append(time)
-        patient_ray.append(patient_val)
-        # Volume Tidal plotting
-        # read_status indicates whether tidal volume needs to start collecting
-        if int(data_ray[12])==0 and read_status==0:
-            read_status=1
-        
-        if int(data_ray[12])==1 and read_status==1:
-            read_status=0
-            tidalcc=0
-        
-        if read_status==1:
-            v2=float(chamber*(float(data_ray[2])+psia)/psia)
-            tidalcurr=v2-chamber
-            tidalcc+=tidalcurr
-            tidal_ray.append(tidalcc)
-            tidal_time.append(float(data_ray[0])/1000)
+        if len(data_ray)==13:                 #Test whether complete serial line was sent
+            time=float(data_ray[0])/1000            #Convert time to seconds
+            patient_val=float(data_ray[3])*70.307   #Convert patient Data
+            time_ray.append(time)
+            patient_ray.append(patient_val)
+            #rolling_time=np.roll(rolling_time,-1)
+            #rolling_time[NUM_SAMPLES_DISPLAYED-1]=time
+            #rolling_patient=np.roll(rolling_patient,-1)
+            # Volume Tidal plotting
+            # read_status indicates whether tidal volume needs to start collecting
+            if int(data_ray[12])==0 and read_status==0:
+                read_status=1
+            
+            if int(data_ray[12])==1 and read_status==1:
+                read_status=0
+                tidalcc=0
+            
+            if read_status==1:
+                v2=float(chamber*(float(data_ray[2])+psia)/psia)
+                tidalcurr=v2-chamber
+                tidalcc+=tidalcurr
+                tidal_ray.append(tidalcc)
+                tidal_time.append(float(data_ray[0])/1000)
 
-        if read_status==0:
-            tidal_time.append(time)
-            tidal_ray.append(0)
-            flow_ray.append(float(0))
-            flow_time.append(time)
-        
-        prev_tank=float(data_ray[2])
+            if read_status==0:
+                tidal_time.append(time)
+                tidal_ray.append(0)
+                flow_ray.append(float(0))
+                flow_time.append(time)
+            
+            prev_tank=float(data_ray[2])
 
-        ## Flow Rate Collected rrom Flowmeter
-        if read_status==1 and len(tidal_ray)>=3:
-            try:
-                #tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
-                #time_diff=tidal_time[-1]-tidal_time[-2]
-                #flow_rate=float(60*(tidal_diff/1000)/(time_diff/1000))
-                #flow_rate.append(data_ray[4])
-                flow_ray.append(float(data_ray[4]))
-                flow_time.append(float(data_ray[0])/1000)
-            except Exception as e:
-                print(e)
+            ## Flow Rate Collected rrom Flowmeter
+            if read_status==1 and len(tidal_ray)>=3:
+                try:
+                    #tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
+                    #time_diff=tidal_time[-1]-tidal_time[-2]
+                    #flow_rate=float(60*(tidal_diff/1000)/(time_diff/1000))
+                    #flow_rate.append(data_ray[4])
+                    flow_ray.append(float(data_ray[4]))
+                    flow_time.append(float(data_ray[0])/1000)
+                except Exception as e:
+                    print(e)
+            
+            #Set X Time windows
+            p1.setXRange(max(0,time-window) ,time+1)
+            p2.setXRange(max(0,time-window) ,time+1)
+            p3.setXRange(max(0,time-window) ,time+1)
+            #Set final data values to update plots
+            curve.setData(time_ray,patient_ray)
+            curve2.setData(tidal_time,tidal_ray)
+            curve3.setData(flow_time,flow_ray)
+            app.processEvents()
+    dec+=1
         
-        #Set X Time windows
-        p1.setXRange(max(0,time-window) ,time+1)
-        p2.setXRange(max(0,time-window) ,time+1)
-        p3.setXRange(max(0,time-window) ,time+1)
-        #Set final data values to update plots
-        curve.setData(time_ray,patient_ray)
-        curve2.setData(tidal_time,tidal_ray)
-        curve3.setData(flow_time,flow_ray)
-        app.processEvents()
-    except Exception as e:
-        print(e)
-        
-        '''
+    '''
         ax1.cla()
         ax1.plot(time_ray,patient_ray)
         ax1.set_xlabel("Time")
@@ -176,9 +190,8 @@ def update():
     
         fig.tight_layout(pad=.5)
         plt.pause(0.00001)
-        '''
+    '''
        
-        sleep(1/1000)
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
