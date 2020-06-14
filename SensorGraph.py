@@ -28,19 +28,23 @@ rolling_patient=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_volume=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_flow=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_simulated=np.zeros(NUM_SAMPLES_DISPLAYED)
-#plt.style.use("seaborn")
+
+##Flow Rate Constant Declarations
+d1=0.756
+d2=0.34
+density=1.225
+d1_metres=d1*25.4/1000
+d2_metres=d2*25.4/1000
+A1=np.pi*d1_metres*d1_metres/4
+A2=np.pi*d2_metres*d2_metres/4
+C1=1000*60*A1*(2/np.sqrt((A1/A2)*(A1/A2)-1))
+C2=np.sqrt(1/density)
+
 print("***********************************************")
 print("***************Ventilator GUI******************")
 print("***********************************************")
-#window=input("Enter preasure Window Size in sec")
-#window=int(window)
-#timeout=input("Specify timeout in seconds")
-timeout=40
-#portDAT=input("Enter serial port comm")
-
-
-#port=serial.Serial(portDAT)
 #Serial Port info
+timeout=40
 port=serial.Serial('/dev/cu.usbmodem1421')
 port.baudrate=115200
 port.bytesize=8
@@ -48,13 +52,16 @@ port.parity='N'
 port.stopbits=1
 chamber=1200
 psia=14.696
+               
 #Tidal volume plot arrays
 tidal_ray=[]
 tidal_time=[]
 rawDataRay=[]
+               
 #Patient preassure arrays
 time_ray=[]
 patient_ray=[]
+               
 #Flowrate arrays
 flow_ray=[]
 flow_time=[]
@@ -95,6 +102,7 @@ l = pg.GraphicsLayout(border=(100, 100, 100))
 view.setCentralItem(l)
 view.show()
 view.resize(1000, 1000)
+
 ##Initialize Plots###
 p1 = l.addPlot()  #Patient Plot
 p1.setLabel("bottom","Time (sec)")
@@ -109,15 +117,12 @@ l.nextRow()
 p3 = l.addPlot() #FlowRate Plot
 p3.setLabel("bottom","Time (sec)")
 p3.setLabel("left","Flowrate")
-p3.setTitle("Flowrate")
+p3.setTitle("Flowrate (LPM)")
 l.nextRow()
 p4=l.addPlot() #simulated FlowRate Plot
 p4.setLabel("bottom","Time (sec)")
 p4.setLabel("left","Simulated Flowrate")
 p4.setTitle("Simulated Flowrate")
-#p1 = pg.plot()
-#p1.setRange(xRange=[max(0,time-window),time+10])
-#p1.setWindowTitle('Patient pressure')
 curve = p1.plot()   #Curve Patient
 curve2= p2.plot()   #Curve Volume
 curve3= p3.plot()   #Curve Flowrate
@@ -127,9 +132,9 @@ p2.showGrid(x = True, y = True, alpha = 0.2)
 p3.showGrid(x = True, y = True, alpha = 0.2)
 p4.showGrid(x = True, y = True, alpha = 0.2)
 p4.hide()
+##END Initialize Plots###
 toggle_status=0
 dec=0
-#fig,(ax1,ax2,ax3)=plt.subplots(3,1)
 
 
 
@@ -145,19 +150,25 @@ def update():
     except:
         decoded=''
     if dec % DOWNSAMPLING==0:
-        rawDataRay.append(decoded)              #Parse Serial Line data
+        rawDataRay.append(decoded)                     #Parse Serial Line data
         data_ray=decoded.split(",")
-        if len(data_ray)==13:                 #Test whether complete serial line was sent
-            time=float(data_ray[0])/1000            #Convert time to seconds
-            patient_val=float(data_ray[3])*70.307   #Convert patient Data
+        if len(data_ray)==13:                          #Test whether complete serial line was sent
+            time=float(data_ray[0])/1000               #Convert time to seconds
+            patient_val=float(data_ray[3])*70.307      #Convert patient Data
             time_ray.append(time)
             patient_ray.append(patient_val)
             rolling_time=np.roll(rolling_time,-1)
             rolling_time[NUM_SAMPLES_DISPLAYED-1]=time
             rolling_patient=np.roll(rolling_patient,-1)
             rolling_patient[NUM_SAMPLES_DISPLAYED-1]=patient_val
+               
+            #Experimental Flow Rate Computation
+            PFM1=float(data_ray[4])                     #Collection of Differential Pressure Flowmeter
+            V3=np.sqrt(PFM1*2.54/.01019716213)          #Conversion to Pascals and sqrt
+            FRPLM=C1*C2*V3                              #Flow Rate in LPM
             rolling_flow=np.roll(rolling_flow,-1)
-            rolling_flow[NUM_SAMPLES_DISPLAYED-1]=float(data_ray[4])
+            rolling_flow[NUM_SAMPLES_DISPLAYED-1]=FRPLM
+               
             # Volume Tidal plotting
             # read_status indicates whether tidal volume needs to start collecting
             if int(data_ray[12])==0 and read_status==0:
@@ -190,7 +201,7 @@ def update():
             
             prev_tank=float(data_ray[2])
 
-            ## Flow Rate Collected rrom Flowmeter
+            ## Flow Rate Collected from Flowmeter
             if read_status==1 and len(tidal_ray)>=3:
                 try:
                     tidal_diff=(tidal_ray[-1]-tidal_ray[-2])-(tidal_ray[-2]-tidal_ray[-3])/1000
@@ -203,20 +214,13 @@ def update():
                     flow_time.append(float(data_ray[0])/1000)
                 except Exception as e:
                     print(e)
-            
-            #Set X Time windows
-            #p1.setXRange(max(0,time-window) ,time+1)
-            #p2.setXRange(max(0,time-window) ,time+1)
-            #p3.setXRange(max(0,time-window) ,time+1)
-            #Set final data values to update plots
-            #curve.setData(time_ray,patient_ray)
-            #curve2.setData(tidal_time,tidal_ray)
-            #curve3.setData(flow_time,flow_ray)
+    
             curve.setData(TIME_DATA,rolling_patient)
             curve2.setData(TIME_DATA,rolling_volume)
             curve3.setData(TIME_DATA,rolling_flow)
             curve4.setData(TIME_DATA,rolling_simulated)
             app.processEvents()
+    #Downsampling Update
     dec+=1
 
 
