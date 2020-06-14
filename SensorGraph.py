@@ -29,6 +29,9 @@ rolling_volume=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_flow=np.zeros(NUM_SAMPLES_DISPLAYED)
 rolling_simulated=np.zeros(NUM_SAMPLES_DISPLAYED)
 
+#Initialize Datafile
+datafile = open("Flow_Rates"+'.csv', 'w')
+
 ##Flow Rate Constant Declarations
 d1=0.756
 d2=0.34
@@ -142,14 +145,14 @@ dec=0
 def update():
     global curve, curve2, curve3, curve4, data, dec, time, DOWNSAMPLING, file,TIME_DATA,read_status,tidalcc,prev_tank
     global tidal_ray,tidal_time,rawDataRay,time_ray,patient_ray,flow_ray,flow_time,p1,p2,p3
-    global rolling_time,rolling_flow,rolling_volume,rolling_patient, rolling_simulated, NUM_SAMPLES_DISPLAYED
+    global rolling_time,rolling_flow,rolling_volume,rolling_patient, rolling_simulated, NUM_SAMPLES_DISPLAYED,datafile
     try:
         dat=port.readline()                     #Collect data from serial line
         decoded=dat.decode('utf-8')
-        print(decoded)
     except:
         decoded=''
     if dec % DOWNSAMPLING==0:
+        datafile.flush()
         rawDataRay.append(decoded)                     #Parse Serial Line data
         data_ray=decoded.split(",")
         if len(data_ray)==13:                          #Test whether complete serial line was sent
@@ -168,6 +171,9 @@ def update():
             FRPLM=C1*C2*V3                              #Flow Rate in LPM
             rolling_flow=np.roll(rolling_flow,-1)
             rolling_flow[NUM_SAMPLES_DISPLAYED-1]=FRPLM
+            string_flows=str(PFM1)+","+str(FRPLM)+"\n"
+            print(string_flows)
+            datafile.write(string_flows)
                
             # Volume Tidal plotting
             # read_status indicates whether tidal volume needs to start collecting
